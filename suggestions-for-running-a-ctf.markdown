@@ -108,17 +108,17 @@ Remember that the goal of a CTF is for the players to learn and have fun! The po
 
 ## Pwnables
 
-These pwnables sections only specifically cover Linux binaries.
+이번 pwnable 섹션은 일부 Linux Binary에 대한 정보만을 기술합니다.
 
-### Local
+### 로컬 문제
 
-Local pwnables usually involve SSHing into a machine and exploiting a setuid/setgid binary there. A great way to do this is to create per-team accounts on the machine so that teams can work without interfering with or leaking info to each other. Here is a short checklist of things to configure on the machine:
+로컬 문제들은 보통 어떤 컴퓨터에 SSH 접속을 한 뒤  setuid/setgid 바이너리를 exploit하는 것을 목표로 합니다. 로컬 문제를 내기 위한 좋은 방법으로는 팀마다 계정을 생성하는 방법이 있습니다. 이 방법으로 팀들간에 서로 방해하거나 정보를 유출시킬 일을 없애줄 수 있습니다.다음은 로컬 문제 환경에서의 간단한 확인 사항들입니다:
 
-* Make sure your machine is fully patched and up-to-date.
-* Prevent forkbombing or other resource exhaustion via limits.conf
-* mount -o remount,hidepid=2 /proc # prevent users from seeing each other's processes
-* chmod 1733 /tmp /var/tmp /dev/shm # to avoid people leaking work to others # If you have per-user home dirs, then you can just chmod it 700 :-)
-* Create a user for the problem, put the problem at /home/problemuser/problem
+* 문제 환경이 최신 버전으로 완전히 패치되었는지 확인하세요.
+* limits.conf 설정을 통해 fork-bomb 사용이나 다른 자원 사용을 제한하세요
+* mount -o remount,hidepid=2 /proc # 서로간 프로세스를 볼 수 없도록 설정합니다.
+* chmod 1733 /tmp /var/tmp /dev/shm # 다른 사람들에게 작업물을 유출할 수 없게 해주는 겁니다.# 만약 사용자마다 홈 디렉토리가 있다면, 권한 설정을 그냥 700로 해도 됩니다 :-)
+* 각 문제에 대한 사용자를 만들고, /home/problemuser/problem 형식으로 문제 바이너리를 넣어주세요.
 * chown -R root:root /home/problemuser
 * chown root:problemuser /home/problemuser/problem
 * chmod 2755 /home/problemuser/problem
@@ -126,35 +126,39 @@ Local pwnables usually involve SSHing into a machine and exploiting a setuid/set
 * chown root:problemuser /home/problemuser/flag
 * chmod 440 /home/problemuser/flag
 
-As with all problems, make sure to fully test it after it is fully setup. Specifically, you'll want to make sure that your reference solution works as one of the CTF users and that the flag isn't readable via any other means, or writeable by any user besides root.
 
-### Local Kernel
+어떤 문제에 대해서든, 모두 세팅한 후에는 그 문제에 대한 모든 테스트를 수행해보세요. 특히, 당신은 아마 당신의 솔루션이 CTF 유저로서 잘 작동하는지,다른 방법으로 flag가 읽히지 않는지, 또는 root 관련 유저에 의해 쓰일 수 있는 지 확인하고 싶을 것입니다.
 
-Local kernel exploitation challenges typically involve SSHing into a machine and exploiting a custom kernel driver. This type of challenge can be difficult to reliably host, and are not easily scalable. Since failed exploitation typically brings down the OS, each team should have their own isolated VM. Kernel challenges may be more appropriate for CTF "finals" where the number of teams is small and sufficient system resources may be allocated.
+### 로컬 커널 문제
 
-A possible setup could be running one or many ESXi hosts with a separate VM designated to each team. Provide SSH credentials to each team.
+로컬 커널 문제는 전형적으로 어떤 환경에 SSH 접속을 한 뒤 주최측에서 만든 커널 드라이버를 exploit하는 과정입니다. 이러한 형식의 문제들은 안정적인 환경을 제공하기 힘들고, 쉽게 규모를 키우기 어렵습니다(not easily scalable, 번역 어떻게하지). 만약 exploit이 실패할 경우 전형적으로 OS가 다운되어버리기 때문에, 각 팀들은 각 팀들의 
+독립된 VM이 있어야 하구요. 커널 문제들은 아마 CTF "본선"에 어울릴 지 모릅니다. 팀 수가 적고 충분한 시스템 자원이 지원되거든요.
 
-A few tips and reminders:
- * Instead of making 20 separate VMs, create one base VM and create 20 linked clones.
- * Log in after each VM is created and configure a unique static IP address.
- * Ensure that the OS is completely updated and patched against all public vulnerabilities.
- * REMOVE THE USER FROM SUDO ACCESS!
- * Create the flag in /root and: chmod 400 -R /root; chown root:root -R /root
- * Drop a staff member SSH key in /root/.ssh/ and enable remote root SSH login to help troubleshoot any potential issues.
- * Permit all users to read /proc/kallsyms unless an info leak is part of the challenge: echo 0 > /proc/sys/kernel/kptr_restrict
- * Disable kernel panics on oopses: echo 0 > /proc/sys/kernel/panic_on_oops
- * Develop a simple (authenticated) script for teams to call that reboots the remote VM. This should interface with the hypervisor, not the guest since the guest OS may be unresponsive after an exploitation attempt. Otherwise you will have teams frequently asking for a reboot.
- * Ensure that a working solution exists and that all expected mitigations are actually functional in the VM. This includes the presence of enforced read-only memory, SMEP/SMAP, etc.
+가능한 환경으로는 팀별로 VM을 ESXi 호스트로 제공하는 것입니다. 각 팀에게 SSH 인증 정보를 주세요.
 
-Kernel challenges should be fun! Don't just install an old OS and task competitors with compiling public exploits. There are many ways to be creative with your challenge!
+아래는 사소한 팁들과 떠올려야 할 내용들입니다:
+ * 20개의 분리된 VM을 만들 바에는, 한 개의 VM을 만들고 20개의 연결된 clone(복제본)을 만드세요. (역자: vmware 등의 프로그램에 Clone이라는 기능이 있어서 그대로 번역했습니다.)
+ * VM을 만드신 후 서로 구별될 수 있는 정적인 IP 주소를 구성하세요.
+ * OS가 모든 공개된 취약점에 대해 패치되어있는지 확인하세요.
+ * 절대 사용자에게 SUDO 권한을 주지 마세요!
+ * /root 에 flag를 만드신 후 다음 명령을 실행하세요.
+chmod 400 -R /root; chown root:root -R /root
+ * 대회 운영진에게 SSH 키를 주고 /root/.ssh/에도 담으신 후 원격 로그인을 설정하세요. 여러가지 이슈들과 문제들을 해결하는 데 도움이 됩니다.
+ * info leak 취약점이 문제의 일부가 아니라면 모든 사용자들이 /proc/kallsyms 파일을 볼 수 있게 하기 위해 다음 명령을 실행하세요: echo 0 > /proc/sys/kernel/kptr_restrict
+ * 커널에서 oops가 발생해도 커널 패닉이 나지 않게 설정하세요: echo 0 > /proc/sys/kernel/panic_on_oops
+ * 팀들에게 간단한(인증된) 원격 VM 리부팅 스크립트를 나누어주세요.이 스크립트는 게스트 OS가 아닌, 하이퍼바이저와 통신을 해야됩니다. 공격 시도 중 VM이 맛이 가버릴 수 있거든요. 만약 그렇게 하지 않으면 많은 팀들이 리부팅 요청을 계속 할겁니다.
+ * 주어진 커널 공격 문제에 대한 잘 동작하는 해결법이 있고 그 공격법이 VM에서 제대로 동작하는지 확인하세요. 강제로 설정된 읽기 전용 메모리, SMEP/SMAP 등이 포함됩니다.
 
-### Remote
 
-Remote pwnables involve running a vulnerable network service. There are two popular ways to go about this, xinetd and doing fork/accept in the binary itself.
+커널 문제들은 재밌을거에요! 구버전 OS를 설치해서 대회 참가자들이 공개된 exploit을 컴파일하는 일은 없게 해주세요. 당신의 문제가 창의적으로 되는 방법은 많습니다!
 
-Do not use threads for each connection without fully understanding the consequences. This usually allows users to interfere with each other's exploits (accidentally or intentionally) and can make a problem extremely frustrating.
+### 원격 문제
 
-If your problem relies on leaking libc, consider providing the libc.so along with the problem binary. libc hunting isn't really an interesting skill to test in a CTF.
+리모트 pwnable은 허점이 있는 네트워크 서비스가 운영되는 문제들입니다. 이 문제를 서버화하는 방법으로는 유명한 두 가지가 있는데요, xinetd를 쓰거나 바이너리 내에서 자체적으로 fork/accept를 하는 방법이 있죠.
+
+결과에 대한 완벽한 이해 없이 스레드를 쓰지 마세요. 이런 행위는 서로간의 exploit을 방해할 수 있습니다(실수거나 고의적으로요). 또한 그 문제를 아주 짜증나게 만들 수 있어요.
+
+만약 문제가 libc 주소 유출에 대한 문제라면, 바이너리와 함께 libc.so를 제공하는 것을 고려해보세요. libc 내의 정보(번역자: 버전 정보 없이 함수 위치를 알아낸다는 등) 알아내기 기법이 CTF에서 그다지 고려되는 기술은 아닐 수 있습니다.
 
 If you are using your own fork/accept server instead of xinetd, you should take special care to make sure that somebody who exploits the service cannot kill or take over it. The normal way to do this is to start the service as root and drop privileges after forking (and make sure not to leak that socket fd).
 
