@@ -160,62 +160,60 @@ chmod 400 -R /root; chown root:root -R /root
 
 만약 문제가 libc 주소 유출에 대한 문제라면, 바이너리와 함께 libc.so를 제공하는 것을 고려해보세요. libc 내의 정보(번역자: 버전 정보 없이 함수 위치를 알아낸다는 등) 알아내기 기법이 CTF에서 그다지 고려되는 기술은 아닐 수 있습니다.
 
-If you are using your own fork/accept server instead of xinetd, you should take special care to make sure that somebody who exploits the service cannot kill or take over it. The normal way to do this is to start the service as root and drop privileges after forking (and make sure not to leak that socket fd).
+만약 당신이 xinetd 대신에 자체적인 fork/accept를 쓰고 있다면,그 서비스를 공격하는 사용자들이 그 서비스를 종료시키거나 다운시킬 수 없게 하세요. 이를 수행하는 일반적인 방법은 root 권한으로 서비스를 돌리고 fork 후에 권한을 떨어뜨리는 방법입니다(그리고 그 소켓 fd에 대한 정보를 유출시키지 않는 것입니다).
 
-See [fork_accept.c](https://github.com/pwning/docs/blob/master/fork_accept.c) for a sample fork/accept server following this recommendation.
+[fork_accept.c](https://github.com/pwning/docs/blob/master/fork_accept.c) 에는 언급한 권장사항들을 따르는 fork/accept 서버 예제 코드가 담겨있습니다.
 
-See [example.xinetd](https://github.com/pwning/docs/blob/master/example.xinetd) for a sample xinetd config for an xinetd service.
+[example.xinetd](https://github.com/pwning/docs/blob/master/example.xinetd) 에는 xinetd 서비스에 대한 예제 설정 파일이 있습니다.
 
-If you decide to run your challenge in a chroot or restricted environment, make sure that it has basic programs like /bin/sh, /bin/bash, /bin/cat, etc. If this is not possible, then make that clear in the problem description. It is extremely frustrating to fully exploit a service and then waste an hour before realizing that it is being run in a limited chroot.
+당신이 chroot 환경이나 제한된 환경 안에서 문제들을 돌릴 것이라면, 기본적인 프로그램인 /bin/sh, /bin/bash, /bin/cat 등은 있는 지 확인해보세요. 만약 없어야 한다면,문제 설명에 분명하게 써놓으세요. 어떤 서비스를 다 뚫어놓고 그것이 제한된 chroot 환경이란 것을 알기 위해 몇 시간을 소모하는 것은 극도로 짜증날 수 있습니다.
 
-Setup instructions for a remote pwnable:
+원격 pwnable 문제에 대한 설정을 단계별로 서술해놨습니다:
 
-* Create a user for the problem, put the problem at /home/problemuser/problem
+* 그 문제에 대한 사용자를 만들고, 다음 위치에 문제를 넣어두세요: /home/problemuser/problem
 * chown -R root:problemuser /home/problemuser
 * chmod 750 /home/problemuser
 * touch /home/problemuser/flag
 * chown root:problemuser /home/problemuser/flag
 * chmod 440 /home/problemuser/flag
 
-Avoid relying on short reads. These can be extremely painful to get right remotely. Instead, consider reading one byte at a time until a delimiter or reading length-delimited strings (e.g. read 4 bytes little endian length followed by length bytes of data). Similarly, make sure to check the return value on calls to read/recv to make sure you're not dropping user input.
+짧은 길이에 대한 read 함수에 의존하지 마세요. 이는 exploit을 원격 환경에 맞추는 것을 극도로 어렵게 합니다. 대신 어떤 구분자를 받을 때까지 1바이트씩 읽어오거나, 길이를 지정하면서 동일한 방식으로 read를 수행하세요 (예시:4바이트의 리틀 엔디안 정수로 길이를 수신하고, 그 길이만큼 read를 수행). 비슷한 경우로, read와 recv의 리턴 값을 체크하여 클라이언트로부터 데이터를 제대로 수신하고 있는지 확인하세요.
 
-Just to be clear, here's an example of the wrong way to read 4096 bytes:
+명확하게 하기 위해, 4096바이트를 받아오는 잘못된 예시를 보여드리겠습니다:
 
 ```c
 char buf[4096];
 recv(fd, buf, sizeof(buf));  // This is wrong, recv might return <4096
 ```
 
-For a better way, see the `recvlen` function in [fork_accept.c](https://github.com/pwning/docs/blob/master/fork_accept.c).
+더 좋은 방법으로는, [fork_accept.c](https://github.com/pwning/docs/blob/master/fork_accept.c) 안에 있는 `recvlen` 함수를 참조하세요.
 
-Place the flag in a predictable location such as /home/problemuser/flag. It is frustrating to waste time hunting for the flag file after you have successfully exploited a service.
+flag 파일을 /home/problemuser/flag 와 같은 예상할 수 있는 경로로 놓아주세요. 서비스를 성공적으로 익스플로잇 하고 난 뒤 플래그를 사냥하는 일은 극도로 짜증납니다.
 
-### General notes
+### 일반적인 팁
 
-One of the most important parts of making a working pwnable is proper testing (ideally have it tested by at least one person other than the author). Any time somebody complains that a pwnable is not working, you should have a full reference solution against the live instance that you can run to verify whether the problem is working or not.
+작동하는 pwnable 문제를 만들기 위한 일반적인 팁은 “테스트”입니다 (적어도 문제 제출자 외에 한 사람은 더 테스트해봐야 합니다).누군가가 pwanble 문제가 제대로 작동하지 않는다고 민원을 제기할 때,그 문제가 제대로 돌아가고 있는지 현장에서 바로 확인할 수 있는 완전한 방법이 있어야 합니다.
 
-Here are some more general annoying things in pwnables:
+아래 사항들은 pwnable 문제들 중 일반적으로 짜증나는 부분들입니다:
 
-* Obnoxious output parsing. Please keep the output simple and reasonable to parse. The best type of output to parse is a length delimited string.
+* 불쾌한 출력문 파싱.출력을 간단하고 파싱하기 쉽게 만들어 놓으세요. 파싱하기 가장 좋은 출력의 유형은 길이가 일정한 문자열입니다.
+ 불쾌한 출력문의 예시입니다:
+ ASCII 문자열 + 숫자로 이루어진 길이가 일정한 문자열: 121A1B1C1D1E1F 이런 건 어떻게 파싱해야 할까요? (12, '1A1B1C1D1E1F') 인가요, (1, '2'), (1, 'A'), (1, 'B'), (1, 'C'), (1, 'D'), (1, 'E'), (1, 'F')?
+ 또 다른 예로는 ANSI escape 문자열입니다. 이런 건 자중해주세요, 좀 :-)
+* 바이너리 상으로는 NX가 켜져있는데, 바이너리가 실행되는 환경에서는 NX를 지원하지 않는 경우가 있습니다.
+* 황당한 코드들과 "가짜" 버그들. 만약 90%의 코드가 입력값과 랜덤값을 비교하는 코드들이라면, 문제가 그리 재밌진 않을 것입니다. 만약 프로그램의 버그가 "어떤 랜덤한 조건이 성립되었을 때 프로그램 흐름을 버퍼로 조작할 수 있는 버그"라면 아마 조금 더 창의적인 시도를 할 수도 있을 것입니다:-)
 
-  Example of an obnoxious output format:
-  ASCII decimal length delimited strings: 121A1B1C1D1E1F
-  How are we supposed to parse this? Is it (12, '1A1B1C1D1E1F') or it is (1, '2'), (1, 'A'), (1, 'B'), (1, 'C'), (1, 'D'), (1, 'E'), (1, 'F')?
 
-  Another obnoxious output format is stuff with ANSI escape codes. Have some self control, please :-)
-* Even though the binary shows that NX is enabled, the machine it's running on doesn't support it.
-* Nonsensical code and "fake" bugs. If 90% of your code is just checking inputs against a bunch of random constants to waste the reverser's time, it is probably not a very fun problem. If your bug is "the program jumps into this buffer for no good reason when these random constraints are satisfied" then you should probably push yourself to be a little more creative :-)
+### 컴파일러 옵션을 통한 보호 기법
 
-### Compile time protections
+pwnable 문제들은, 자주 일련의 보호 기법이 사용되어야 될 때가 있습니다. 아래의 옵션들은 `gcc`에서 그 옵션들을 키거나/끄는 방법입니다.
 
-Often, a pwnable requires a specific set of protections to be enabled. Here's how to force them on / off in `gcc`
+* `-fstack-protector` / `-fno-stack-protector`: 스택 카나리
+* `-D_FORTIFY_SOURCE=2` / `-D_FORTIFY_SOURCE=0` (`-U_FORTIFY_SOURCE` 를 앞에 넣으면 재선언 관련 경고들을 줄일 수 있습니다): `memcpy()`, `sprintf()`, `read()` 등등의 함수들은 libc의 "`*_check`" 버전을 쓰세요. 이 함수들은 버퍼 오버플로우가 감지되면 프로그램을 중단시킵니다. (여기서 쓰인 방식이 완벽하진 않고 여러 상황에서 잘 작동하지 않는 점을 명심해주세요)
+* `-fPIE -pie` / `-fno-PIE`: Position independent code, 즉 PIE라고 불리는 바이너리를 컴파일하는 옵션입니다 (ASLR을 라이브러리가 아닌, 실행 파일까지 확장시켜줍니다). PIE 는 32 bit 운영체제에서는 그리 효과가 없다는 점을 알아두세요, 가령 PIE를 신경쓰지 않은 익스플로잇이 한 주소로 수백, 수천번 실행될 수 있습니다. `-fPIC` 옵션은 `-fPIE` 옵션에서 결과 코드가 꼭 메인 바이너리에 포함되지는 않게 해줍니다 (그와 관련된 일련의 최적화를 방지합니다), 그리고 기능이 동일한 `-fpie`, `-fpic`  옵션도 있습니다.
+* `-Wl,-z,relro,-z,now` / `?`: Full RELRO 옵션입니다 (GOT랑 PLT가 프로그램 로딩 시 미리 기록되고 읽기 권한 메모리로 매핑됩니다).
 
-* `-fstack-protector` / `-fno-stack-protector`: Stack canaries
-* `-D_FORTIFY_SOURCE=2` / `-D_FORTIFY_SOURCE=0` (prepend `-U_FORTIFY_SOURCE` to silence re-definition warnings): Use "`*_check`" versions of libc functions like `memcpy()`, `sprintf()`, `read()`, etc. that abort when they detect buffer overflows. (Note that detection is far from perfect and does not work in many cases.)
-* `-fPIE -pie` / `-fno-PIE`: Position independent code (extends ASLR to also randomize the main binary, not just libraries). Note that PIE is usually ineffective on 32 bit, i.e. a PIE-unaware exploit will land once every couple hundred/thousand times. `-fPIC` is a version of `-fPIE` that doesn't require the resulting code to be part of the main executable (by avoiding certain optimizations), and there's also `-fpie` and `-fpic` which are dumb.
-* `-Wl,-z,relro,-z,now` / `?`: Full RELRO (the GOT and PLT will be written and mapped read-only during program load).
-
-As security becomes a more mainstream issue (yay!), more compile-time and runtime protections are being enabled by default. So, to avoid surprises you should really test your problems in their final configuration & setup.
+보안이 메인 이슈가 되는 만큼 (예!),기본적으로 많은 컴파일 시간대의 보호 기법과 런타임 보호 기법이 기본 옵션으로 적용되고 있습니다. 그래서, 당황할만한 상황을 미연에 방지하기 위해서 마지막 설정 및 설치 후 꼭 확인을 다시 해봐야 할 것입니다.
 
 ## Web Challenges
 
